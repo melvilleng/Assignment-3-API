@@ -1276,29 +1276,6 @@ app.get(
     } else {
       return res.status(200).json({ code: "200", task: list_state_acronym[0] });
     }
-
-    // db.query(
-    //   "SELECT * FROM task WHERE Task_state=? && Task_app_Acronym=?",
-    //   [task_state, app_acronym],
-    //   (err, result) => {
-    //     try {
-    //       if (
-    //         result[0].Task_state === "Open" ||
-    //         result[0].Task_state === "To-do-list" ||
-    //         result[0].Task_state === "Doing" ||
-    //         result[0].Task_state === "Done" ||
-    //         result[0].Task_state === "Close"
-    //       ) {
-    //         return res.json({ code: "200", tasks: result[0] });
-    //       } else {
-    //         return res.json({ code: "406" });
-    //       }
-    //     } catch {
-    //       return res.json({ code: "406" });
-    //     }
-    //   }
-    // );
-    return res.status(200).json({ code: "200" });
   }
 );
 
