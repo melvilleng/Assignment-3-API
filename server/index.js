@@ -1143,17 +1143,17 @@ app.post("/send", function (req, res) {
   });
 });
 
-app.post("/CreateTask", async function (req, res) {
-  const username = req.query.username;
-  const password = req.query.password;
+app.post("/CreateTask/:username/:password", async function (req, res) {
+  const username = req.params.username;
+  const password = req.params.password;
   const task_name = req.body.taskname;
   const task_description = req.body.task_description;
   const task_app_acronym = req.body.task_app_acronym;
-  const task_creator = req.query.username;
-  const task_owner = req.query.username;
+  const task_creator = req.params.username;
+  const task_owner = req.params.username;
   const task_createdate = datetime;
 
-  if (!task_app_acronym || !username || !password) {
+  if (!task_app_acronym || !username || !password || !task_name) {
     return res.json({ code: "400" });
   }
 
@@ -1170,64 +1170,65 @@ app.post("/CreateTask", async function (req, res) {
     return res.status(401).json({ code: "401" });
   }
 
+  const checkapplication = await db
+    .promise()
+    .query("SELECT * FROM application WHERE App_Acronym=?", [task_app_acronym]);
+
+  if (!checkapplication[0][0]) {
+    return res.status(405).json({
+      code: "405",
+    });
+  }
+
+  const permit = await db
+    .promise()
+    .query("SELECT * FROM application WHERE App_Acronym=?", [task_app_acronym]);
+  if (!user[0][0].usergroup.includes(permit[0][0].App_permit_Create)) {
+    res.status(403).json({ code: "403" });
+  }
+
   if (user[0][0].status === "Disable") {
     return res.status(401).json({ code: "401" });
-  } else {
-    db.query(
-      "SELECT App_Rnumber FROM application WHERE App_Acronym=?",
-      [task_app_acronym],
-      (err, result) => {
-        try {
-          if (err) {
-            console.log(err);
-          } else {
-            let rnumber = result[0].App_Rnumber;
-            const taskid = req.body.task_app_acronym + "_" + rnumber;
-            db.query(
-              "INSERT INTO task(Task_id,Task_name,Task_description,Task_app_Acronym,Task_creator,Task_owner,Task_createDate) VALUES (?,?,?,?,?,?,?)",
-              [
-                taskid,
-                task_name,
-                task_description,
-                task_app_acronym,
-                task_creator,
-                task_owner,
-                task_createdate,
-              ],
-              (err, result) => {
-                if (err) {
-                  console.log(err);
-                } else {
-                  console.log("All done");
-                  rnumber = rnumber + 1;
-                  db.query(
-                    "UPDATE application SET App_Rnumber=? WHERE App_Acronym=?",
-                    [rnumber, task_app_acronym],
-                    (err, result) => {
-                      if (err) {
-                        console.log(err);
-                      } else {
-                        console.log("Rnumber updated");
-                        return res.status(200).json({
-                          task_id: taskid,
-                          code: "200",
-                        });
-                      }
-                    }
-                  );
-                }
-              }
-            );
-          }
-        } catch {
-          return res.status(405).json({ code: "405" });
-        }
-      }
-    );
   }
+  const checkrnumber = await db
+    .promise()
+    .query("SELECT App_Rnumber FROM application WHERE App_Acronym=?", [
+      task_app_acronym,
+    ]);
+
+  let rnumber = checkrnumber[0][0].App_Rnumber;
+  const taskid = req.body.task_app_acronym + "_" + rnumber;
+  await db
+    .promise()
+    .query(
+      "INSERT INTO task(Task_id,Task_name,Task_description,Task_app_Acronym,Task_creator,Task_owner,Task_createDate) VALUES (?,?,?,?,?,?,?)",
+      [
+        taskid,
+        task_name,
+        task_description,
+        task_app_acronym,
+        task_creator,
+        task_owner,
+        task_createdate,
+      ]
+    );
+
+  let newrnumber = rnumber + 1;
+  const updateapp = await db
+    .promise()
+    .query("UPDATE application SET App_Rnumber=? WHERE App_Acronym=?", [
+      newrnumber,
+      task_app_acronym,
+    ]);
+
+  return res.status(200).json({
+    task_id: taskid,
+    code: "200",
+  });
 });
 
 //show task state
+
 app.get(
   "/GetTaskbyState/:task_state/:app_acronym/:username/:password",
   async function (req, res) {
@@ -1272,6 +1273,8 @@ app.get(
 
     if (!list_state_acronym) {
       return res.status(406).json({ code: "406" });
+    } else {
+      return res.status(200).json({ code: "200", task: list_state_acronym[0] });
     }
 
     // db.query(
@@ -1387,7 +1390,7 @@ app.put(
       );
     }
 
-    res.status(200).json({ code: "200" });
+    res.status(200).json({ success: "true", code: "200" });
   }
 );
 
